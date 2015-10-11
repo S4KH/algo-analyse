@@ -1,0 +1,5 @@
+main.o: main.c bipartiteGraph.h commonDefs.h
+memoryUtil.o: memoryUtil.c memoryUtil.h
+linkedList.o: linkedList.c commonDefs.h linkedList.h memoryUtil.h
+bpGraphAdjMat_AA.o: bpGraphAdjMat_AA.c bipartiteGraph.h memoryUtil.h \
+ commonDefs.h
