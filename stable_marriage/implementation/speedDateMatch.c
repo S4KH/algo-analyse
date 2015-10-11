@@ -1,0 +1,208 @@
+/*
+ * main.c
+ *
+ *  Created on: 24 Sep 2015
+ *      Author: skh
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+/*
+ * Compute stable marriage using Gale-Shapley algorithm
+ */
+void computeStableMarriage(int num_male, int num_female, int ** male_pref,
+		int ** female_pref) {
+
+	/* Female current partners and male partners */
+	int *curr_fem_part, *match;
+	int proposed[num_male][num_female - 1];
+
+	/* Allocate memory to arrays */
+	curr_fem_part = (int *) malloc(sizeof(int) * num_female);
+	match = (int *) malloc(sizeof(int) * num_male);
+
+	/*Setting default values -1*/
+	memset(curr_fem_part, -1, sizeof(int) * num_female);
+	memset(match, -1, sizeof(int) * num_male);
+	memset(proposed, 0, sizeof(int) * num_male * (num_female));
+
+	/* Temporary variables */
+	int i, j = 1, female_id, male_id, k, curr_part_rank=-1, cand_part_rank=-1;
+
+	/* Iterating through free males */
+	for (i = 0; match[i] == -1; i++) {
+		for (j = 1; j < num_female + 1; j++) {
+			/* If preference is not given*/
+			female_id = male_pref[i][j];
+			male_id = male_pref[i][0];
+
+			/* If male already proposed skip the current female */
+			if (proposed[male_id][female_id]) {
+				continue;
+			}
+
+			/* Adding female id to male's proposed list */
+			proposed[male_id][female_id] = 1;
+
+			/*If female didn't receive any proposals, they get engaged*/
+			if (curr_fem_part[female_id] == -1) {
+				match[i] = female_id;
+				curr_fem_part[female_id] = male_id;
+				break;
+			} else {
+
+				/* Finding current and candidate males' rank from female preference table */
+				for (k = 1; k < num_male + 1; k++) {
+					if (female_pref[female_id][k] == male_id) {
+						cand_part_rank = k;
+					} else if (female_pref[female_id][k]
+							== curr_fem_part[female_id]) {
+						curr_part_rank = k;
+					}
+				}
+
+				/* If candidate male has higher rank than current male partner then current
+				 * male partner gets rejected and match is updated with candidate partner's ID */
+				if ((cand_part_rank < curr_part_rank || curr_part_rank == -1) && cand_part_rank!=-1) {
+					match[curr_fem_part[female_id]] = -1;
+					curr_fem_part[female_id] = male_id;
+					match[male_id] = female_id;
+					break;
+				}
+
+				/* Setting to default, preventing from previous value usage */
+				cand_part_rank = -1;
+				curr_part_rank = -1;
+			}
+		}
+		if (i == num_male - 1) {
+			i = -1;
+		}
+	}
+
+	/* Print stable matching  */
+	for (i = 0; i < num_male; i++) {
+		if (match[i] != -1)
+			printf("%d %d\n", i, match[i]);
+	}
+
+	/*Freeing each rows in the preference table*/
+	for (i = 0; i < num_female; i++) {
+		free(female_pref[i]);
+	}
+	for (i = 0; i < num_male; i++) {
+		free(male_pref[i]);
+	}
+
+	/*Deallocating memories for temporary variables*/
+	free(male_pref);
+	free(female_pref);
+	free(curr_fem_part);
+	free(match);
+
+}
+
+void printArray(int **arr, int n, int m) {
+	int i, j;
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < m; j++) {
+			printf("%d ", arr[i][j]);
+		}
+		printf("\n");
+	}
+}
+
+/*
+ * Main function, the entry point of program.
+ */
+int main(int argc, char *argv[]) {
+
+	if (argc < 1) {
+		printf("Please specify file name");
+		exit(EXIT_FAILURE);
+	}
+
+	FILE *file;
+	const char *fname = argv[1];
+	int num_male = 0, num_female = 0, i, j;
+	int **male_pref, **female_pref;
+	int row = 0;
+	char ch;
+
+	/* Opening the file */
+	if ((file = fopen(fname, "r")) == NULL) {
+		fprintf(stderr, "Error: cannot open file %s.\n", fname);
+		return EXIT_FAILURE;
+	}
+
+	/* Scanning data from the file */
+	if (fscanf(file, "%d %d", &num_male, &num_female) > 0) {
+
+		/* Initializing rows */
+		male_pref = (int **) malloc(sizeof(int*) * num_male);
+		female_pref = (int**) malloc(sizeof(int*) * num_female);
+
+		/* Initializing columns */
+		for (i = 0; i < num_male; i++) {
+			male_pref[i] = (int *) malloc(sizeof(int) * (num_female + 1));
+
+			/*Set all values to -1, used when preference is not given*/
+			memset(male_pref[i], -1, sizeof(int) * (num_female + 1));
+		}
+		for (i = 0; i < num_female; i++) {
+			female_pref[i] = (int *) malloc(sizeof(int) * (num_male + 1));
+
+			/*Set all values to -1, used when preference is not given*/
+			memset(female_pref[i], -1, sizeof(int) * (num_male + 1));
+		}
+
+		/* Reading preferences from file */
+		for (i = 0; i < num_male; i++) {
+
+			/* Getting the party id */
+			fscanf(file, "%d", &row);
+			male_pref[row][0] = row;
+			for (j = 1; j < num_female + 1; j++) {
+				fscanf(file, "%d%c", &male_pref[row][j], &ch);
+
+				/* Checking if new line is reached, used for skipping the row */
+				if (ch == '\n') {
+					break;
+				}
+			}
+		}
+		for (i = 0; i < num_female; i++) {
+
+			/* Getting the party id */
+			fscanf(file, "%d", &row);
+			female_pref[row][0] = row;
+			for (j = 1; j < num_male + 1; j++) {
+				fscanf(file, "%d%c", &female_pref[row][j], &ch);
+
+				/* Checking if new line is reached, used for skipping the row */
+				if (ch == '\n') {
+					break;
+				}
+			}
+		}
+
+	}
+
+	/* Closing file pointer */
+	fclose(file);
+
+	/*
+	 printArray(male_pref, num_male, num_female + 1);
+	 printf("\n");
+	 printArray(female_pref, num_female, num_male + 1);
+	 printf("\n");*/
+
+	/* Find matches based on their preferences */
+	computeStableMarriage(num_male, num_female, male_pref, female_pref);
+
+	return EXIT_SUCCESS;
+}
+

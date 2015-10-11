@@ -1,0 +1,158 @@
+/*
+ * main.c
+ *
+ *  Created on: 26 Sep 2015
+ *      Author: skh
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+/*
+ * Compute bachelorette match using NRMP algorithm
+ */
+void computeAssigment(int num_male, int num_female, int ** male_pref,
+		int ** female_pref, int ** max_date) {
+
+	/* Female current partners and male partners */
+	int curr_fem_part[num_female], match[num_male];
+
+	memset(curr_fem_part, -1, sizeof(int) * num_female);
+	memset(match, -1, sizeof(int) * num_male);
+
+	/* Temporary variables */
+	int i, j = 1, female_id, male_id, k, curr_part_rank, cand_part_rank;
+
+	/* Iterating through free males */
+	for (i = 0; match[i] == -1; i++) {
+		for (j = 1; j < num_female + 1; j++) {
+			female_id = male_pref[i][j];
+			male_id = male_pref[i][0];
+
+			/* If male already proposed skip the current female 
+			if (max_date[female_id][1] == 0) {
+				continue;
+			}*/
+
+			/*If female didn't receive any proposals, they get engaged */
+			if (curr_fem_part[female_id] == -1) {
+				match[i] = female_id;
+				curr_fem_part[female_id] = male_id;
+				/*max_date[female_id][1]--;*/
+				break;
+			} else {
+
+				/* Finding current and candidate males' rank from female preference table */
+				for (k = 1; k < num_male + 1; k++) {
+					if (female_pref[female_id][k] == male_id) {
+						cand_part_rank = k;
+					} else if (female_pref[female_id][k]
+							== curr_fem_part[female_id]) {
+						curr_part_rank = k;
+					}
+				}
+
+				/* If candidate male has higher rank than current male partner then current
+				 * male partner gets rejected and match is updated with candidate partner's ID */
+				if (cand_part_rank < curr_part_rank
+						&& max_date[female_id][1] == 1) {
+					match[curr_fem_part[female_id]] = -1;
+					curr_fem_part[female_id] = male_id;
+					match[male_id] = female_id;
+					/*max_date[female_id][1] = 0;*/
+					break;
+				}
+				/* If female can date more than 1 male, match with male and update current female partner array value with least preferred male */
+				else if (max_date[female_id][1] > 1) {
+					if (cand_part_rank > curr_part_rank) {
+						curr_fem_part[female_id] = male_id;
+					}
+
+					match[male_id] = female_id;
+					max_date[female_id][1]--;
+					break;
+				}
+			}
+		}
+		if (i == num_male - 1) {
+			i = 0;
+		}
+	}
+
+	/* Print stable matching  */
+	for (i = 0; i < num_male; i++) {
+		printf("%d %d\n", i, match[i]);
+	}
+
+}
+
+/*
+ * Main function, the entry point of program.
+ */
+int main(int argc, char *argv[]) {
+
+	if (argc < 1) {
+		printf("Please specify file name");
+		exit(EXIT_FAILURE);
+	}	
+
+	FILE *file;
+	const char *fname = argv[1];
+	int num_male = 0, num_female = 0, i, j;
+	int **male_pref, **female_pref, **max_date;
+
+	/* Opening the file */
+	if ((file = fopen(fname, "r")) == NULL) {
+		fprintf(stderr, "Error: cannot open file %s.\n", fname);
+		return EXIT_FAILURE;
+	}
+
+	/* Scanning data from the file */
+	if (fscanf(file, "%d %d", &num_male, &num_female) > 0) {
+
+		/* Initializing rows */
+		male_pref = (int **) malloc(sizeof(int*) * num_male);
+		female_pref = (int**) malloc(sizeof(int*) * num_female);
+		max_date = (int**) malloc(sizeof(int*) * num_female);
+
+		/* Initializing columns for preference matrices */
+		for (i = 0; i < num_male; i++) {
+			male_pref[i] = (int *) malloc(sizeof(int) * (num_female + 1));
+			female_pref[i] = (int *) malloc(sizeof(int) * (num_female + 1));
+		}
+
+		/* Maximum number of dates matrix column initialization */
+		for (i = 0; i < num_female; i++) {
+			max_date[i] = (int *) malloc(sizeof(int) * 2);
+		}
+
+		/* Reading preferences from file */
+		for (i = 0; i < num_male; i++) {
+			for (j = 0; j < num_female + 1; j++) {
+				fscanf(file, "%d", &male_pref[i][j]);
+			}
+		}
+		for (i = 0; i < num_female; i++) {
+			for (j = 0; j < num_male + 1; j++) {
+				fscanf(file, "%d", &female_pref[i][j]);
+			}
+		}
+
+		/* Reading maximum number of dates for female */
+		for (i = 0; i < num_female; i++) {
+			fscanf(file, "%d %d", &max_date[i][0], &max_date[i][1]);
+		}
+
+	}
+
+	/* Closing file pointer */
+	fclose(file);
+
+	/* Find matches based on their preferences */
+	computeAssigment(num_male, num_female, male_pref, female_pref, max_date);
+
+	return EXIT_SUCCESS;
+}
+
