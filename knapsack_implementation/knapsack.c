@@ -6,6 +6,11 @@
 #include <sys/time.h>
 
 /*
+   Compile - gcc −Wall −O3 −o knapsack knapsack.c
+   Execute - ./knapsack −v −n 8 −W 200
+*/
+
+/*
  * Data structure for the set of items, which each have a weight, value. 
  * n is the number of items in our set.
  */
